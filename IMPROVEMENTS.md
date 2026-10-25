@@ -56,8 +56,11 @@ Suggested order: 5 → 1 → 3 → 2. Schema notes improve every AI feature at o
 - **Keep `GridScroller` chrome out of range renders.** Every row or column range change re-renders the body's `AppContextMenu` wrapper (~2ms in dev) because its child element is new each render.
 - **Edit a view's query.** Views can be created, renamed and dropped from the navigator, but changing what one selects still needs the query runner (`CREATE OR REPLACE VIEW`, or drop and recreate for a materialized view).
 - **Refresh a materialized view.** Postgres materialized views only change on `REFRESH MATERIALIZED VIEW`; a menu item on the view's row (with `CONCURRENTLY` when it has a unique index) would keep its tab from showing stale rows.
-- **Catalog completion in routine bodies.** The Schema pages' function and trigger body editors get keywords only; `attachSqlSource` would give them the runner's table and column completion, as New View has.
 - **SQL Server indexed views.** SQL Server's equivalent of a materialized view is a `SCHEMABINDING` view with a unique clustered index, so New View offers no Materialized option there yet.
+- **Structured document editor for MongoDB.** Insert document is a free-form mongosh/Extended JSON editor (highlighted, with catalog completion); a field-by-field view like Compass's — each row a key, a type picker and a value, nesting into sub-documents and arrays — would let someone build a document without knowing BSON syntax, and edit an existing document the same way the grid edits a cell.
+- **Frame the Insert document editor's AI ghost text as an insert.** The editor holds a bare `{ … }`, so the ghost-text prefix sent to the model is an object literal, not a `db.<collection>.insertOne(…)` call; the mongosh completion prompt expects a db call, so wrapping the context (as the static completion already does) would give the model the collection and the insert intent and sharpen its suggestions there. The Query runner has the full call, so it is unaffected.
+- **A custom seed value for MongoDB.** The seed panel's SQL-expression generator is SQL-only because it emits `sql.raw` the database evaluates per row, and MongoDB seeds `insertMany` literal documents the browser builds, so there is no server-side expression. A MongoDB generator could still take a constant relaxed Extended JSON value (`{"$oid":"…"}`, a fixed sub-document) parsed client-side and inserted into every row; a per-row `ObjectId()`/`new Date()` form would need the shell-BSON parser on the client (it is node-only today) or routing seed values through the executor.
+- **Richer MongoDB indexes.** The Add index form covers ascending compound keys with unique, sparse and TTL. A per-field direction picker (`-1`), the special key types (`text`, `2dsphere`, `hashed`), a partial-index filter, and collation would cover the rest of `createIndex`. A **Search Index** (Atlas Search) is a separate object — a JSON mapping definition against `$search`, available only on Atlas — so it needs its own form, as Compass splits them.
 
 ## Query runner
 
@@ -144,6 +147,9 @@ Suggested order: 5 → 1 → 3 → 2. Schema notes improve every AI feature at o
 - **A kit empty state with an icon.** `PaneEmpty` (`apps/app/src/components/pane-empty.tsx`) and the share site's `EmptyState` are the same `Empty` composite (muted icon, title, description, optional action), and the site's deep-link status builds it by hand again; one `packages/ui` custom component would serve all three.
 - **A kit switch field.** An `OptionField` holding a `Switch` bound to a form field is written out in the share form, three times in `column-dialog.tsx` and in `drop-dialog.tsx`; a `field.Switch` on the kit's form hook would save about eight lines a use.
 - **Keep `todesktop.json` formatted on install.** `scripts/sync-pnpm-versions.ts` rewrites it with `JSON.stringify`, which expands the one-line arrays oxfmt keeps inline, so every pnpm bump leaves formatting churn until `pnpm fix` runs. Writing only the `pnpmVersion` line (as it already does for the workflow YAML) would avoid it.
+- **Serialize `@tamery/mongo/shell` through the BSON library once callers hold instances.** `toShell` is hand-rolled because its input is relaxed Extended JSON with 64-bit longs pre-wrapped as `{$numberLong}`, which no single `EJSON.deserialize` mode reproduces (`relaxed` drops Long precision, canonical re-wraps every `1` as `NumberInt`). `@mongodb-js/shell-bson-parser@2.0.0`'s `toJSString` (Bun-ESM-safe, unlike 1.6.3) would replace the whole file if the runtime handed it real BSON instances instead of wire JSON — then the `keepLongs`/`toWire` dance in `dialects/mongodb/run.ts` could go too.
+- **Drop the `require` workaround for `@mongodb-js/shell-bson-parser`.** `dialects/mongodb/client.ts` loads it through `createRequire` because 1.6.3's ESM wrapper loses its exports under Bun; 2.0.0 ships real ESM that imports cleanly, so bumping the catalog would let it be a normal `import`.
+- **Hoist the identical `statementAt`.** `@tamery/mongo/statements` and `@tamery/sql/statements` export a byte-identical `statementAt`; one copy in `@tamery/shared` would serve both.
 
 ## AI
 
@@ -265,6 +271,13 @@ Suggested order: 5 → 1 → 3 → 2. Schema notes improve every AI feature at o
 - **Include the last day of an AI usage range.** The filter compares `createdAt` to the end date at midnight, so a picked range drops its final day.
 - **Fix the Metadata only description in the Sync menu.** It says only the name and color sync; the label, engine and provider sync too.
 - **Stop the AUR package claiming the `tamery` binary.** `/usr/bin/tamery` points at the desktop app and the package `provides`/`conflicts` `tamery`, the same name as the npm CLI's binary, so Arch users cannot have both on the path.
+- **Keep every MongoDB seed host.** A pasted `h1,h2,h3` string keeps only the first host, since a URL holds one; storing the rest in a param would keep connecting when that member is down.
+- **Show BSON types the shell way in Query results.** Runner cells show relaxed Extended JSON (`{"$oid": …}`); `ObjectId("…")` and `ISODate("…")`, as mongosh prints them, would read better and paste back into a query.
+- **Edit MongoDB indexes and validation.** The Indexes section is read-only and a collection's `$jsonSchema` validator is not shown; create, drop and a validator editor would cover the rest of a collection's structure.
+- **Fields beyond the sample.** Columns come from 100 random documents, so a rare field never shows; a "Load all fields" action, or merging fields seen in loaded rows, would surface them.
+- **AI ghost text and Explain for mongosh.** Inline completion and Explain are SQL-only; `cursor.explain()` and a mongosh FIM prompt would give MongoDB the same.
+- **Run `use <db>` in a MongoDB Query tab.** Only `db.getSiblingDB('x')` reaches another database; reading `use` as switching the tab's resource would match the shell.
+- **Number alignment for MongoDB longs.** A `long` field reads as text, since the shared numeric type pattern cannot learn `long` without catching Oracle's text `LONG`; a per-engine numeric pattern would right-align it.
 
 ## Sharing
 
@@ -272,6 +285,7 @@ Suggested order: 5 → 1 → 3 → 2. Schema notes improve every AI feature at o
 - **Viewer filters.** Viewers can only sort and page; a search over the shown columns, narrowing on top of the owner's filters, would cover most "find my row" visits.
 - **A share cache shared across proxy instances.** Each proxy keeps its own bounded page cache and rate limit in memory; Redis would let a second instance reuse the first one's pages and count one limit.
 - **CSV download for viewers.** Left out of the first version; the proxy would need an export read capped well past a page, and the share site a server route turning it into CSV.
+- **Share a MongoDB collection.** Shares compile one Kysely `SELECT`, so Share is hidden for MongoDB; the proxy reading a page through the mongodb executor's `find` would cover collections too.
 - **Share a saved query.** A share is one table; a share of a saved runner query would cover joins and aggregates, with the same read-only and public-host checks.
 - **Say why Share is greyed out when the share list fails.** The ⋯ menu's **Share** waits for the share list, so offline or with the API down it stays disabled with no reason; a muted trailing "Offline" like "Needs Full sync" would explain it.
 - **Show free links left in the share dialog.** A Free user learns about the 3-link limit only when **Share** opens the upgrade dialog; a muted "2 of 3 free links" footnote on New link would set the expectation first.
