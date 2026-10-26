@@ -32,3 +32,17 @@ The design system is the `tamery-ui` skill (`.agents/skills/tamery-ui/`). Record
 - **Docs stay true to the app.** Any change a user can see or do updates the `docs/` pages that describe it in the same task, and a new feature gets its home there. What counts and how to write it: `documentation.md`.
 - **Every new user action is tracked.** A feature that adds or changes something a user does (a mutation, a command, a toggle, an AI request) ships its PostHog event in the same task — convention and privacy limits in `architecture.md` → Analytics.
 - **Every review ask runs the `thermo-nuclear-code-quality-review` skill.** "Review", "review this", a PR/branch/diff review or a quality audit — load it first and hold the work to its approval bar.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `wannabespace/tamery`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles, each label string unchanged (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
