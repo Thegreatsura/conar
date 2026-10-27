@@ -6,6 +6,8 @@ _The AI-powered database client and MCP server for desktop and web_
   <img src="https://img.shields.io/badge/Download-Tamery-green?style=for-the-badge" alt="Download Tamery" />
 </a>
 
+<img src="./screenshot.png" alt="Tamery screenshot" width="100%" />
+
 We built Tamery because we wanted a database client that is fast, simple and nice to look at.
 
 And one that actually helps instead of getting in the way.
