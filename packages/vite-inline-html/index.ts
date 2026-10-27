@@ -1,9 +1,13 @@
+import { createHash } from 'node:crypto'
+
 import type { Plugin } from 'vite'
 
 import { PLUGIN_NAME, replaceMarkers } from './utils.ts'
 
 interface InlineHtmlOptions {
   scripts: { marker: string; entry: string }[]
+  // A script-src placeholder filled with the inlined scripts' sha256 hashes in a build, so the CSP needs no 'unsafe-inline'. Dev keeps 'unsafe-inline': Vite injects the React Fast Refresh preamble as an inline script whose bytes we never see.
+  cspMarker?: string
 }
 
 const bundleScript = async (root: string, entry: string) => {
@@ -25,16 +29,25 @@ const bundleScript = async (root: string, entry: string) => {
     throw new Error(`[${PLUGIN_NAME}] ${entry} produced no chunk`)
   }
 
-  return `<script>${chunk.code}</script>`
+  return chunk.code
 }
 
-export const inlineHtml = ({ scripts }: InlineHtmlOptions): Plugin => {
+// Hashes the script's text exactly as it sits between the tags, so the CSP matches what the browser parses.
+const scriptHash = (code: string) =>
+  `'sha256-${createHash('sha256').update(code).digest('base64')}'`
+
+export const inlineHtml = ({
+  scripts,
+  cspMarker,
+}: InlineHtmlOptions): Plugin => {
   let bundles = new Map<string, Promise<string>>()
   let root: string
+  let isBuild = false
 
   return {
-    configResolved({ root: resolved }) {
+    configResolved({ root: resolved, command }) {
       root = resolved
+      isBuild = command === 'build'
     },
     configureServer(server) {
       server.watcher.on('change', (file) => {
@@ -50,11 +63,24 @@ export const inlineHtml = ({ scripts }: InlineHtmlOptions): Plugin => {
           const code = bundles.get(entry) ?? bundleScript(root, entry)
           bundles.set(entry, code)
 
-          return [marker, await code] as const
+          return { code: await code, marker }
         })
       )
 
-      return replaceMarkers(html, inlined)
+      const replacements: [string, string][] = inlined.map(
+        ({ marker, code }) => [marker, `<script>${code}</script>`]
+      )
+
+      if (cspMarker) {
+        replacements.push([
+          cspMarker,
+          isBuild
+            ? inlined.map(({ code }) => scriptHash(code)).join(' ')
+            : `'unsafe-inline'`,
+        ])
+      }
+
+      return replaceMarkers(html, replacements)
     },
   }
 }

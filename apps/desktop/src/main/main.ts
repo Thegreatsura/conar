@@ -7,7 +7,7 @@ import { MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH } from '@tamery/shared/constants'
 import type { UpdatesStatus } from '@tamery/shared/updates'
 import { Result } from 'better-result'
 import type { Rectangle } from 'electron'
-import { app, BrowserWindow, ipcMain, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron'
 import Store from 'electron-store'
 
 import { setupProtocolHandler } from './lib/deep-link'
@@ -56,6 +56,22 @@ let mainWindow: BrowserWindow | null = null
 
 // Allowlist: any other scheme hands the renderer a way to launch arbitrary local apps. cursor: and vscode: carry the MCP install links.
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'cursor:', 'vscode:'])
+
+// With no handler Electron grants every web permission, so this allowlist is the only gate. Clipboard must stay — grid and connection-string paste read it; nothing behind the rest (camera, mic, geolocation, midi, web notifications: desktop notifies natively over IPC).
+const ALLOWED_PERMISSIONS = new Set([
+  'clipboard-read',
+  'clipboard-sanitized-write',
+])
+
+const restrictPermissions = () => {
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, grant) =>
+      grant(ALLOWED_PERMISSIONS.has(permission))
+  )
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+    ALLOWED_PERMISSIONS.has(permission)
+  )
+}
 
 const openExternal = async (win: BrowserWindow, url: string) => {
   const opened = await Result.tryPromise(() => shell.openExternal(url))
@@ -221,6 +237,7 @@ export const createWindow = (route?: string) => {
 }
 
 app.on('ready', () => {
+  restrictPermissions()
   createWindow()
 
   ipcMain.handle('app.openWindow', (_event, route: string) => {

@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => ({
       routesDirectory: 'src/routes',
     }),
     inlineHtml({
+      cspMarker: '%INLINE_SCRIPT_CSP%',
       scripts: [{ entry: 'src/boot.ts', marker: '<!--boot-->' }],
     }),
     inlineReactHtml({
