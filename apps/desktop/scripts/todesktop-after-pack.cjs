@@ -127,9 +127,10 @@ module.exports = async function toDesktopAfterPack({
     entries.map(async ([from, to]) => {
       const target = path.join(destination, to)
       await cp(path.join(extracted, from), target)
-      if (to.startsWith('bin/')) {
-        await chmod(target, 0o755)
-      }
+      // Every file needs the owner write-bit or macOS auto-update aborts: on install
+      // ShipIt strips the quarantine xattr from each file and fails on a read-only one
+      // (the EDB zip ships commandlinetools_3rd_party_licenses.txt as 0444).
+      await chmod(target, to.endsWith('.txt') ? 0o644 : 0o755)
       if (
         LIPO_ARCHS[arch] &&
         electronPlatformName === 'darwin' &&
