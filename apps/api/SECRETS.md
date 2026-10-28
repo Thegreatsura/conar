@@ -23,8 +23,6 @@ Either secret may be a comma-separated keyring, current key first. A key must ne
    read -rs "S?Secret: "; echo; printf %s "$S" | bun run apps/api/scripts/wrap-secret.ts; unset S
    ```
 
-   For self-hosted Infisical, also export `INFISICAL_SITE_URL`.
-
 5. **Healthcheck first**, in every API service: path `/health`, timeout at least 120s. Without it, a deploy that fails to unwrap takes traffic and goes down instead of leaving the old instance serving.
 6. **Variables**, in every API service:
    - Confirm the start command is `apps/api`'s `bun run start`. The unwrap is a preload inside that script.
