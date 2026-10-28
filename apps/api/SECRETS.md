@@ -43,11 +43,10 @@ NODE_ENV=production bun run rotate:encryption-secret [--execute]   # or rotate:u
 **New key value**: every "set" below means wrap the value, update `*_WRAPPED`, and redeploy every API service.
 
 1. Back up `<new>`.
-2. Set `<old>,<new>`. Skipping this step lets a writer on `<new>` reach an instance that cannot read it yet.
-3. Set `<new>,<old>`.
-4. Re-encrypt with the matching `rotate:*` script.
-5. Set `<new>`.
-6. Keep `<old>` in the backup until every database backup that predates step 4 has expired.
+2. Set `<new>,<old>`. While the deploy overlaps, an instance still on `<old>` fails to read the rows a new instance just wrote; this lasts only seconds and is accepted.
+3. Re-encrypt with the matching `rotate:*` script.
+4. Set `<new>`.
+5. Keep `<old>` in the backup until every database backup that predates step 3 has expired.
 
 **New KMS key, same value:** wrap the same plaintext under the new key, then update `INFISICAL_KMS_KEY_ID` and both `*_WRAPPED` values. Stored data is untouched.
 
